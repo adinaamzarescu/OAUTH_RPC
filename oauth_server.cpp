@@ -8,14 +8,19 @@
 #include "token.h"
 #include "utils.h"
 
+// Global map to store approval details for each user
 map<string, vector<struct permissions_detail>> approvals;
 
+// Function to generate an access token for a given client ID token
 char *generate_access_token(char *clientIdToken);
 
+// Function to find a user by user ID and generate an access token if found
 bool find_user(char *user_id, char **result_token) {
     for (int i = 0; i < user_list.size(); i++) {
-        if (strcmp(user_list[i].user_identifier, user_id) == 0) {
+        if (!strcmp(user_list[i].user_identifier, user_id)) {
+			// Generate access token
             strcpy(*result_token, generate_access_token(user_id));
+			// Store request token
             strcpy(user_list[i].tokens.request_token, *result_token);
             return true;
         }
@@ -23,15 +28,19 @@ bool find_user(char *user_id, char **result_token) {
     return false;
 }
 
+// Function to initialize a permissions_detail struct with targeted resource and granted permissions
 permissions_detail initialize_permissions_detail(string targeted_resource, string granted_permissions) {
-    permissions_detail rp;
-    ALLOCATE_STRING(rp.targeted_resource, MEMORY_SIZE);
-    ALLOCATE_STRING(rp.granted_permissions, MEMORY_SIZE);
-    strcpy(rp.targeted_resource, targeted_resource.c_str());
-    strcpy(rp.granted_permissions, granted_permissions.c_str());
-    return rp;
+    permissions_detail permissions_detail;
+	// Allocate memory for targeted resource and granted permissions
+    ALLOCATE_STRING(permissions_detail.targeted_resource, MEMORY_SIZE);
+    ALLOCATE_STRING(permissions_detail.granted_permissions, MEMORY_SIZE);
+	// Copy targeted resource string and granted permissions string
+    strcpy(permissions_detail.targeted_resource, targeted_resource.c_str());
+    strcpy(permissions_detail.granted_permissions, granted_permissions.c_str());
+    return permissions_detail;
 }
 
+// Function to update the permissions details for a given result token using a line of data
 void update_permissions_details(string result_token, string line) {
     istringstream lineStream(line);
     string token, targeted_resource, granted_permissions;
@@ -41,242 +50,289 @@ void update_permissions_details(string result_token, string line) {
         if (i % 2 == 0) targeted_resource = token;
         else {
             granted_permissions = token;
+			// Add permissions detail
             perms.push_back(initialize_permissions_detail(targeted_resource, granted_permissions));
         }
         i++;
     }
+	// Update global map with permissions details
     approvals[result_token] = perms;
 }
 
+// RPC service function to handle authorization requests
 char **request_authorization_1_svc(char **argp, struct svc_req *rqstp)
 {
     static char *result;
+	// Allocate memory for the result
     ALLOCATE_STRING(result, MEMORY_SIZE);
 
+	// Log the authorization request
     LOG_ACTION(*argp, STR_AUTHZ);
 
     if (!find_user(*argp, &result)) {
+		// User is not found
         strcpy(result, STR_USER_NOT_FOUND);
         return &result;
     }
 
     string line;
     if (!getline(input_file_4, line, CHAR_NEWLINE)) {
+		// Print the request token
         PRINT_REQUEST_TOKEN(result);
         return &result;
     }
 
+	// Update permissions details
     update_permissions_details(string(result), line);
+	// Print the request token
     PRINT_REQUEST_TOKEN(result);
     return &result;
 }
 
+// Function to initialize the token_details struct
 void initialize_token_details(struct token_details *details) {
+	// Allocate memory for request token, access token, refresh token and error message
     ALLOCATE_STRING(details->request_token, MEMORY_SIZE);
     ALLOCATE_STRING(details->access_token, MEMORY_SIZE);
     ALLOCATE_STRING(details->refresh_token, MEMORY_SIZE);
     ALLOCATE_STRING(details->token_error_message, MEMORY_SIZE);
 }
 
-struct token_details *
-request_access_token_1_svc(struct token_refresh_request *argp, struct svc_req *rqstp)
-{
+// Function to determine if a refresh action should be logged
+bool should_log_refresh_action(bool refresh_token_requested, int token_validity, bool initiate_refresh) {
+    return refresh_token_requested && token_validity == 0 && initiate_refresh;
+}
+
+// Function to set access and refresh tokens in user credentials and token_details struct
+void set_tokens(user_credentials& user, token_details& result, const char* access_token, const char* refresh_token = nullptr) {
+	// Set access token in user credentials and result
+    strcpy(user.tokens.access_token, access_token);
+    strcpy(result.access_token, access_token);
+	// Print the access token
+    PRINT_ACCESS_TOKEN(result.access_token);
+
+    if (refresh_token) {
+		// Set refresh token in user credentials and result
+        strcpy(user.tokens.refresh_token, refresh_token);
+        strcpy(result.refresh_token, refresh_token);
+		// Print the refresh token
+        PRINT_REFRESH_TOKEN(result.refresh_token);
+    }
+}
+
+// RPC service function to handle access token requests
+struct token_details *request_access_token_1_svc(struct token_refresh_request *argp, struct svc_req *rqstp) {
     static struct token_details result;
+	// Initialize token details
     initialize_token_details(&result);
 
-    for (int i = 0; i < user_list.size(); i++)
-    {
-        if (strcmp(user_list[i].user_identifier, argp->user_identifier) == 0)
-        {
-            if (user_list[i].is_token_validated == true)
-            {
-                ALLOCATE_STRING(user_list[i].tokens.access_token, MEMORY_SIZE);
-                ALLOCATE_STRING(user_list[i].tokens.refresh_token, MEMORY_SIZE);
-
-                char *access_token = NULL;
-                ALLOCATE_STRING(access_token, MEMORY_SIZE);
-                strcpy(access_token, generate_access_token(argp->request_token));
-
-                char *refresh_token = NULL;
-                ALLOCATE_STRING(refresh_token, MEMORY_SIZE);
-
-                if (argp->refresh_token && user_list[i].tokens.token_validity_seconds == 0 && argp->initiate_refresh == true)
-                {
-                    LOG_ACTION(argp->user_identifier, STR_AUTHZ_REFRESH);
-                }
-                strcpy(user_list[i].tokens.access_token, access_token);
-                user_list[i].tokens.token_validity_seconds = token_validity_seconds;
-                result.token_validity_seconds = token_validity_seconds;
-
-                strcpy(result.access_token, access_token);
-                PRINT_ACCESS_TOKEN(result.access_token);
-                if (argp->refresh_token)
-                {
-                    strcpy(refresh_token, generate_access_token(access_token));
-                    strcpy(user_list[i].tokens.refresh_token, refresh_token);
-                    strcpy(result.refresh_token, refresh_token);
-                    PRINT_REFRESH_TOKEN(result.refresh_token);
-                }
-                FREE_MEMORY(access_token);
-                FREE_MEMORY(refresh_token);
-                break;
-            }
-            else
-            {
+    bool found = false;
+    for (auto& user : user_list) {
+        if (!strcmp(user.user_identifier, argp->user_identifier)) {
+            found = true;
+            if (!user.is_token_validated) {
+				// Set error message if token is not validated
                 strcpy(result.token_error_message, STR_REQUEST_DENIED);
                 break;
             }
+
+			// Allocate memory for access token and refresh token
+            ALLOCATE_STRING(user.tokens.access_token, MEMORY_SIZE);
+            ALLOCATE_STRING(user.tokens.refresh_token, MEMORY_SIZE);
+
+            char *access_token = NULL;
+			// Allocate memory for generated access token
+            ALLOCATE_STRING(access_token, MEMORY_SIZE);
+			// Generate access token
+            strcpy(access_token, generate_access_token(argp->request_token));
+
+            char *refresh_token = NULL;
+            if (argp->refresh_token) {
+				// Allocate memory for refresh token
+                ALLOCATE_STRING(refresh_token, MEMORY_SIZE);
+				// Generate refresh token
+                strcpy(refresh_token, generate_access_token(access_token));
+            }
+
+            if (should_log_refresh_action(argp->refresh_token, user.tokens.token_validity_seconds, argp->initiate_refresh)) {
+				// Log refresh action
+                LOG_ACTION(argp->user_identifier, STR_AUTHZ_REFRESH);
+            }
+
+			// Set access and refresh tokens
+            set_tokens(user, result, access_token, refresh_token);
+
+			// Set token validity seconds
+            user.tokens.token_validity_seconds = token_validity_seconds;
+			// Set result token validity seconds
+            result.token_validity_seconds = token_validity_seconds;
+
+			// Free allocated memory
+            FREE_MEMORY(access_token);
+            if (refresh_token) {
+                FREE_MEMORY(refresh_token);
+            }
+            break;
         }
+    }
+
+    if (!found) {
+		// User is not found
+        strcpy(result.token_error_message, STR_ERROR_USER_NOT_FOUND);
     }
 
     return &result;
 }
 
-char **
-validate_delegated_action_1_svc(struct operation_details *argp, struct svc_req *rqstp)
-{
-	static char *result;
-	ALLOCATE_STRING(result, MEMORY_SIZE);
-	strcpy(result, STR_NULL_TERMINATOR);
-	bool found = false;
-	int token_validity_seconds = 0;
-	char access_token[MEMORY_SIZE];
-
-	for (int i = 0; i < user_list.size(); i++)
-	{
-		bool ok = false;
-		if (strcmp(user_list[i].tokens.access_token, argp->access_token) == 0
-		 	&& strlen(argp->access_token) != 0)
-		{
-			strcpy(access_token, argp->access_token);
-			found = true;
-			if (user_list[i].is_token_validated == true)
-			{
-				if (user_list[i].tokens.token_validity_seconds == 0)
-				{
-                    LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, user_list[i].tokens.token_validity_seconds);
-                    strcpy(result, STR_TOKEN_EXPIRED);
-                    break;
-				}
-				else
-				{
-					string res(argp->targeted_resource);
-					vector<string>::iterator it;
-					it = find(resources.begin(), resources.end(), res);
-					if (it != resources.end())
-					{
-						for (int j = 0; j < approvals[user_list[i].tokens.request_token].size(); j++)
-						{
-							if (strcmp(approvals[user_list[i].tokens.request_token][j].targeted_resource, 
-									argp->targeted_resource) == 0)
-							{
-								string perms(approvals[user_list[i].tokens.request_token][j].granted_permissions);
-								string op(argp->type_of_operation);
-								if (perms.find(op.at(strcmp(argp->type_of_operation, STR_EXECUTE) == 0 
-										? 1 : 0)) != string::npos)
-								{
-                                    user_list[i].tokens.token_validity_seconds--;
-                                    token_validity_seconds = user_list[i].tokens.token_validity_seconds;
-                                    LOG_PERMIT(argp->type_of_operation, argp->targeted_resource, access_token, user_list[i].tokens.token_validity_seconds);
-                                    strcpy(result, STR_PERMISSION_GRANTED);
-                                    ok = true;
-                                    break;
-								}
-								else
-								{
-                                    user_list[i].tokens.token_validity_seconds--;
-                                    token_validity_seconds = user_list[i].tokens.token_validity_seconds;
-                                    LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user_list[i].tokens.token_validity_seconds);
-                                    strcpy(result, STR_OPERATION_NOT_PERMITTED);
-                                    ok = true;
-                                    break;
-								}
-							}
-						}
-						if (ok)
-						{
-							break;
-						}
-					}
-					else
-					{
-                        user_list[i].tokens.token_validity_seconds--;
-                        token_validity_seconds = user_list[i].tokens.token_validity_seconds;
-                        LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user_list[i].tokens.token_validity_seconds);
-                        strcpy(result, STR_RESOURCE_NOT_FOUND);
-                        break;
-					}
-				}
-			}
-		}
-	}
-	if (found == false)
-	{
-        LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, token_validity_seconds);
-        strcpy(result, STR_PERMISSION_DENIED);
-	}
-	else
-	{
-		if (strlen(result) == 0)
-		{
-			for (int i = 0; i < user_list.size(); i++)
-			{
-				if (strcmp(user_list[i].tokens.access_token, argp->access_token) == 0)
-				{
-					user_list[i].tokens.token_validity_seconds--;
-					token_validity_seconds = user_list[i].tokens.token_validity_seconds;
-				}
-			}
-            LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, token_validity_seconds);
-            strcpy(result, STR_OPERATION_NOT_PERMITTED);
-		}
-	}
-
-	return &result;
+// Function to check if a requested operation is permitted for a given token and resource
+bool is_operation_permitted(const char* requested_operation, const char* targeted_resource, const string& request_token) {
+    string operation(requested_operation);
+    auto& details = approvals[request_token];
+    for (auto& detail : details) {
+        if (!strcmp(detail.targeted_resource, targeted_resource)) {
+            string permissions(detail.granted_permissions);
+			// Determine operation index based on request type
+            size_t op_index = strcmp(requested_operation, STR_EXECUTE) == 0 ? 1 : 0;
+            if (permissions.find(operation.at(op_index)) != string::npos) {
+				// Return true if operation is permitted
+                return true;
+            }
+        }
+    }
+	// Return false if operation is not permitted
+    return false;
 }
 
-char **
-approve_request_token_1_svc(char **argp, struct svc_req *rqstp)
-{
-	static char *result;
-	ALLOCATE_STRING(result, MEMORY_SIZE);
-	bool found = false;
+// RPC service function to validate a delegated action.
+char **validate_delegated_action_1_svc(struct operation_details *argp, struct svc_req *rqstp) {
+    static char *result;
+	// Allocate memory for the result
+    ALLOCATE_STRING(result, MEMORY_SIZE);
+	// Initialize result with null terminator
+    strcpy(result, STR_NULL_TERMINATOR);
 
-	for (auto entry : approvals)
-	{
+    if (!strlen(argp->access_token)) {
+		// Log deny action if access token is empty
+        LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, 0);
+		// Set result to "permission denied"
+        strcpy(result, STR_PERMISSION_DENIED);
+        return &result;
+    }
+
+    bool found = false;
+    int token_validity_seconds = 0;
+    char access_token[MEMORY_SIZE];
+
+    for (auto& user : user_list) {
+        if (!strcmp(user.tokens.access_token, argp->access_token)) {
+			// Copy access token
+            strcpy(access_token, argp->access_token);
+            found = true;
+
+            if (!user.is_token_validated) {
+				// Log deny action if token is not validated
+                LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, user.tokens.token_validity_seconds);
+				// Set result to "request denied"
+                strcpy(result, STR_REQUEST_DENIED);
+                break;
+            }
+
+            if (!user.tokens.token_validity_seconds) {
+				// Log deny action if token is expired
+                LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, user.tokens.token_validity_seconds);
+				// Set result to "token expired"
+                strcpy(result, STR_TOKEN_EXPIRED);
+                break;
+            }
+
+            auto it = find(resources.begin(), resources.end(), string(argp->targeted_resource));
+            if (it != resources.end()) {
+				// Check if operation is permitted
+                bool permitted = is_operation_permitted(argp->type_of_operation, argp->targeted_resource, user.tokens.request_token);
+				// Decrease token validity seconds
+                user.tokens.token_validity_seconds--;
+                token_validity_seconds = user.tokens.token_validity_seconds;
+                if (permitted) {
+					// Log permit action
+                    LOG_PERMIT(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_seconds);
+					// Set result to "permission granted"
+                    strcpy(result, STR_PERMISSION_GRANTED);
+                } else {
+					// Log deny action
+                    LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_seconds);
+					// Set result to "operation not permitted"
+                    strcpy(result, STR_OPERATION_NOT_PERMITTED);
+                }
+                break;
+            } else {
+				// Decrease token validity seconds
+                user.tokens.token_validity_seconds--;
+				// Log deny action if resource not found
+                LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_seconds);
+				// Set result to "resource not found"
+                strcpy(result, STR_RESOURCE_NOT_FOUND);
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+		// Log deny action if user is not found
+        LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, token_validity_seconds);
+		// Set result to "permission denied"
+        strcpy(result, STR_PERMISSION_DENIED);
+    }
+
+    return &result;
+}
+
+// RPC service function to approve a request token.
+char **approve_request_token_1_svc(char **argp, struct svc_req *rqstp)
+{
+    static char *result;
+	// Allocate memory for the result
+    ALLOCATE_STRING(result, MEMORY_SIZE);
+    bool found = false;
+
+    for (auto entry : approvals)
+    {
         const string& key = entry.first;
         const auto& value = entry.second;
-        if (*argp == key && strcmp(value[0].targeted_resource, STR_WILDCARD) == 0 &&
-            strcmp(value[0].granted_permissions, STR_DASH) == 0)
+        if (*argp == key && !strcmp(value[0].targeted_resource, STR_WILDCARD) &&
+            !strcmp(value[0].granted_permissions, STR_DASH))
         {
-            auto it = std::find_if(user_list.begin(), user_list.end(),
+            auto it = find_if(user_list.begin(), user_list.end(),
                                    [&](const user_credentials& user) {
-                                       return strcmp(user.tokens.request_token, *argp) == 0;
+                                       return !strcmp(user.tokens.request_token, *argp);
                                    });
             if (it != user_list.end())
             {
+				// Set token as not validated
                 it->is_token_validated = false;
                 found = true;
                 break;
             }
         }
-	}
+    }
     if (!found)
     {
-        auto it = std::find_if(user_list.begin(), user_list.end(),
+        auto it = find_if(user_list.begin(), user_list.end(),
                                [&](const user_credentials& user) {
-                                   return strcmp(user.tokens.request_token, *argp) == 0;
+                                   return !strcmp(user.tokens.request_token, *argp);
                                });
         if (it != user_list.end())
         {
+			// Set token as validated
             it->is_token_validated = true;
         }
     }
-	INITIALIZE_STRING(result, *argp);
+	// Initialize result with the request token
+    INITIALIZE_STRING(result, *argp);
 
-	return &result;
+    return &result;
 }
 
+// RPC service function to check the validity of a token.
 int *check_token_validity_1_svc(char **argp, struct svc_req *rqstp)
 {
     static thread_local int result = -1;
@@ -284,8 +340,9 @@ int *check_token_validity_1_svc(char **argp, struct svc_req *rqstp)
     result = -1;
     for (const auto& user : user_list)
     {
-        if (strcmp(user.user_identifier, *argp) == 0)
+        if (!strcmp(user.user_identifier, *argp))
         {
+			// Set result to the token validity seconds
             result = user.tokens.token_validity_seconds;
             break;
         }

@@ -64,6 +64,7 @@
 #define STR_CALL_FAILED "call failed"
 #define STR_UDP "udp"
 #define STR_ERROR_OPENING_FILE "error at opening file!"
+#define STR_ERROR_USER_NOT_FOUND "User not found"
 #define STR_REQUEST_OPERATION "REQUEST"
 
 #define STR_EMPTY ""
@@ -75,5 +76,13 @@
 #define CHAR_NEWLINE '\n'
 
 #define MEMORY_SIZE 50
+#define NULLPTR (char **)NULL
+#define TOKEN_DETAILS_NULL (struct token_details *)NULL
+#define INT_PTR_NULL (int *)NULL
+
+
+map<string, bool> automatedRefresh;
+map<string, string> userRefresh;
+map<string, string> userData;
 
 #endif /* UTILS_H */

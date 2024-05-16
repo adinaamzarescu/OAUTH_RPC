@@ -16,178 +16,207 @@
 #define SIG_PF void (*)(int)
 #endif
 
-vector<user_credentials> user_list;
-vector<string> resources;
+#define FREE_MEMORY(ptr) do { free(ptr); ptr = NULL; } while(0)
+#define OPEN_FILE(file, filename) \
+    ifstream file(filename); \
+    CHECK_FILE(file, filename);
+
+#define CHECK_FILE(file, filename) \
+    if (!file.is_open()) { \
+        cout << "Error at opening file: " << filename << endl; \
+        exit(EXIT_FAILURE); \
+    }
+
+#define CHECK_GETLINE(input_file, line, line_number) \
+    if (!getline(input_file, line, CHAR_NEWLINE)) { \
+        cerr << "Error reading line " << line_number << endl; \
+        exit(EXIT_FAILURE); \
+    }
+
+#define CLOSE_FILE(file) file.close()
+#define CHAR_NEWLINE '\n'
+#define USER_IDENTIFIER_SIZE 20
+#define REQUEST_TOKEN_SIZE 50
+
 int token_validity_seconds;
+vector<string> resources;
+vector<user_credentials> user_list;
 ifstream input_file_4;
+
+void allocate_and_copy_string(char **destination, const char *source) {
+    *destination = (char *)malloc(strlen(source) + 1);
+    if (*destination) {
+        strcpy(*destination, source);
+    }
+}
+
+void allocate_and_copy_user_identifier(char **destination, const string& source) {
+    *destination = (char *)malloc(USER_IDENTIFIER_SIZE);
+    if (*destination) {
+        strncpy(*destination, source.c_str(), USER_IDENTIFIER_SIZE - 1);
+        (*destination)[USER_IDENTIFIER_SIZE - 1] = '\0';
+    }
+}
+
+void allocate_request_token(char **destination) {
+    *destination = (char *)malloc(REQUEST_TOKEN_SIZE);
+    if (*destination) {
+        (*destination)[0] = '\0';
+	}
+}
 
 static void
 oauth_1(struct svc_req *rqstp, SVCXPRT *transp)
 {
-	union
-	{
+	union {
+		char *check_token_validity_1_arg;
 		char *request_authorization_1_arg;
+		char *approve_request_token_1_arg;
 		struct token_refresh_request request_access_token_1_arg;
 		struct operation_details validate_delegated_action_1_arg;
-		char *approve_request_token_1_arg;
-		char *check_valability_1_arg;
 	} argument;
 	char *result;
 	xdrproc_t _xdr_argument, _xdr_result;
 	char *(*local)(char *, struct svc_req *);
 
-	switch (rqstp->rq_proc)
-	{
+	switch (rqstp->rq_proc) {
 	case NULLPROC:
-		(void)svc_sendreply(transp, (xdrproc_t)xdr_void, (char *)NULL);
+		(void) svc_sendreply (transp, (xdrproc_t) xdr_void, (char *)NULL);
 		return;
 
+	case check_token_validity:
+		_xdr_argument = (xdrproc_t) xdr_wrapstring;
+		_xdr_result = (xdrproc_t) xdr_int;
+		local = (char *(*)(char *, struct svc_req *)) check_token_validity_1_svc;
+		break;
+
 	case request_authorization:
-		_xdr_argument = (xdrproc_t)xdr_wrapstring;
-		_xdr_result = (xdrproc_t)xdr_wrapstring;
-		local = (char *(*)(char *, struct svc_req *))request_authorization_1_svc;
-		break;
-
-	case request_access_token:
-		_xdr_argument = (xdrproc_t)xdr_token_refresh_request;
-		_xdr_result = (xdrproc_t)xdr_token_details;
-		local = (char *(*)(char *, struct svc_req *))request_access_token_1_svc;
-		break;
-
-	case validate_delegated_action:
-		_xdr_argument = (xdrproc_t)xdr_operation_details;
-		_xdr_result = (xdrproc_t)xdr_wrapstring;
-		local = (char *(*)(char *, struct svc_req *))validate_delegated_action_1_svc;
+		_xdr_argument = (xdrproc_t) xdr_wrapstring;
+		_xdr_result = (xdrproc_t) xdr_wrapstring;
+		local = (char *(*)(char *, struct svc_req *)) request_authorization_1_svc;
 		break;
 
 	case approve_request_token:
-		_xdr_argument = (xdrproc_t)xdr_wrapstring;
-		_xdr_result = (xdrproc_t)xdr_wrapstring;
-		local = (char *(*)(char *, struct svc_req *))approve_request_token_1_svc;
+		_xdr_argument = (xdrproc_t) xdr_wrapstring;
+		_xdr_result = (xdrproc_t) xdr_wrapstring;
+		local = (char *(*)(char *, struct svc_req *)) approve_request_token_1_svc;
 		break;
 
-	case check_token_validity:
-		_xdr_argument = (xdrproc_t)xdr_wrapstring;
-		_xdr_result = (xdrproc_t)xdr_int;
-		local = (char *(*)(char *, struct svc_req *))check_token_validity_1_svc;
+	case request_access_token:
+		_xdr_argument = (xdrproc_t) xdr_token_refresh_request;
+		_xdr_result = (xdrproc_t) xdr_token_details;
+		local = (char *(*)(char *, struct svc_req *)) request_access_token_1_svc;
+		break;
+
+	case validate_delegated_action:
+		_xdr_argument = (xdrproc_t) xdr_operation_details;
+		_xdr_result = (xdrproc_t) xdr_wrapstring;
+		local = (char *(*)(char *, struct svc_req *)) validate_delegated_action_1_svc;
 		break;
 
 	default:
-		svcerr_noproc(transp);
+		svcerr_noproc (transp);
 		return;
 	}
-	memset((char *)&argument, 0, sizeof(argument));
-	if (!svc_getargs(transp, (xdrproc_t)_xdr_argument, (caddr_t)&argument))
-	{
-		svcerr_decode(transp);
+	memset ((char *)&argument, 0, sizeof (argument));
+	if (!svc_getargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
+		svcerr_decode (transp);
 		return;
 	}
 	result = (*local)((char *)&argument, rqstp);
-	if (result != NULL && !svc_sendreply(transp, (xdrproc_t)_xdr_result, result))
-	{
-		svcerr_systemerr(transp);
+	if (result != NULL && !svc_sendreply(transp, (xdrproc_t) _xdr_result, result)) {
+		svcerr_systemerr (transp);
 	}
-	if (!svc_freeargs(transp, (xdrproc_t)_xdr_argument, (caddr_t)&argument))
-	{
-		fprintf(stderr, "%s", "unable to free arguments");
-		exit(1);
+	if (!svc_freeargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
+		fprintf (stderr, "%s", "unable to free arguments");
+		exit (1);
 	}
 	return;
 }
 
-int main(int argc, char **argv)
+int
+main (int argc, char **argv)
 {
 	SVCXPRT *transp;
 
-	pmap_unset(OAUTH, OAUTHVERS);
+	pmap_unset (OAUTH, OAUTHVERS);
 
 	transp = svcudp_create(RPC_ANYSOCK);
-	if (transp == NULL)
-	{
-		fprintf(stderr, "%s", "cannot create udp service.");
+	if (transp == NULL) {
+		fprintf (stderr, "%s", "cannot create udp service.");
 		exit(1);
 	}
-	if (!svc_register(transp, OAUTH, OAUTHVERS, oauth_1, IPPROTO_UDP))
-	{
-		fprintf(stderr, "%s", "unable to register (OAUTH, OAUTHVERS, udp).");
+	if (!svc_register(transp, OAUTH, OAUTHVERS, oauth_1, IPPROTO_UDP)) {
+		fprintf (stderr, "%s", "unable to register (OAUTH, OAUTHVERS, udp).");
 		exit(1);
 	}
 
 	transp = svctcp_create(RPC_ANYSOCK, 0, 0);
-	if (transp == NULL)
-	{
-		fprintf(stderr, "%s", "cannot create tcp service.");
+	if (transp == NULL) {
+		fprintf (stderr, "%s", "cannot create tcp service.");
 		exit(1);
 	}
-	if (!svc_register(transp, OAUTH, OAUTHVERS, oauth_1, IPPROTO_TCP))
-	{
-		fprintf(stderr, "%s", "unable to register (OAUTH, OAUTHVERS, tcp).");
+	if (!svc_register(transp, OAUTH, OAUTHVERS, oauth_1, IPPROTO_TCP)) {
+		fprintf (stderr, "%s", "unable to register (OAUTH, OAUTHVERS, tcp).");
 		exit(1);
 	}
 
-	char *userIdFile, *approvalsFile, *resourcesFile;
-	userIdFile = (char *)malloc(50);
-	approvalsFile = (char *)malloc(50);
-	resourcesFile = (char *)malloc(50);
-	strcpy(userIdFile, argv[1]);
-	strcpy(resourcesFile, argv[2]);
-	strcpy(approvalsFile, argv[3]);
+    char *user_file = NULL;
+    char *resources_file = NULL;
+    char *approvals_file = NULL;
+
+    allocate_and_copy_string(&user_file, argv[1]);
+    allocate_and_copy_string(&resources_file, argv[2]);
+    allocate_and_copy_string(&approvals_file, argv[3]);
 
 	token_validity_seconds = stoi(argv[4]);
-	ifstream inputFile1(userIdFile);
-
-	if (!inputFile1.is_open())
-	{
-		cout << "erorr at opening file!";
-		return 0;
-	}
+	OPEN_FILE(input_file_1, user_file);
 
 	string line;
-	getline(inputFile1, line, '\n');
+	CHECK_GETLINE(input_file_1, line, 0);
 	int size = stoi(line);
-	for (int i = 0; i < size; i++)
+	for (int i = 0; i < size; ++i)
 	{
-		getline(inputFile1, line, '\n');
-		user_credentials u;
-		u.user_identifier = (char *)malloc(20);
-		strcpy(u.user_identifier, line.c_str());
-		u.tokens.request_token = (char *)malloc(50);
+		CHECK_GETLINE(input_file_1, line, i + 1);
+        user_credentials u;
+        allocate_and_copy_user_identifier(&u.user_identifier, line);
+        if (u.user_identifier == nullptr) {
+            cerr << "Memory allocation failed for user_identifier" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        allocate_request_token(&u.tokens.request_token);
+        if (u.tokens.request_token == nullptr) {
+            cerr << "Memory allocation failed for request_token" << endl;
+            FREE_MEMORY(u.user_identifier);
+            exit(EXIT_FAILURE);
+        }
 		user_list.push_back(u);
 	}
+	CLOSE_FILE(input_file_1);
 
-	inputFile1.close();
+	OPEN_FILE(input_file_2, resources_file);
 
-	ifstream inputFile2(resourcesFile);
-
-	if (!inputFile2.is_open())
-	{
-		cout << "erorr at opening file!";
-		return 0;
-	}
-
-	getline(inputFile2, line, '\n');
+	CHECK_GETLINE(input_file_2, line, 0);
 	size = stoi(line);
-	for (int i = 0; i < size; i++)
+	for (int i = 0; i < size; ++i)
 	{
-		getline(inputFile2, line, '\n');
+		CHECK_GETLINE(input_file_2, line, i + 1);
 		resources.push_back(line);
 	}
 
-	inputFile2.close();
+	CLOSE_FILE(input_file_2);
 
-	input_file_4.open(approvalsFile);
-	if (!input_file_4.is_open())
-	{
-		cout << "erorr at opening file!";
-		return 0;
-	}
-	free(userIdFile);
-	free(resourcesFile);
-	free(approvalsFile);
+	input_file_4.open(approvals_file);
+	CHECK_FILE(input_file_4, approvals_file);
+	
+	FREE_MEMORY(user_file);
+	FREE_MEMORY(resources_file);
+	FREE_MEMORY(approvals_file);
 
 	setbuf(stdout, NULL);
-	svc_run();
-	fprintf(stderr, "%s", "svc_run returned");
-	exit(1);
+	svc_run ();
+	fprintf (stderr, "%s", "svc_run returned");
+	exit (1);
 	/* NOTREACHED */
 }

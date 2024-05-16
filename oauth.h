@@ -7,6 +7,7 @@
 #define _OAUTH_H_RPCGEN
 
 #include <rpc/rpc.h>
+#include <rpc/rpc.h>
 #include <sstream>
 #include <vector>
 #include <map>
@@ -14,6 +15,7 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+
 
 using namespace std;
 
@@ -46,20 +48,6 @@ struct token_details {
 };
 typedef struct token_details token_details;
 
-struct user_credentials {
-	char *user_identifier;
-	struct token_details tokens;
-	bool_t is_token_validated;
-};
-typedef struct user_credentials user_credentials;
-
-struct operation_details {
-	char *type_of_operation;
-	char *targeted_resource;
-	char *access_token;
-};
-typedef struct operation_details operation_details;
-
 struct token_refresh_request {
 	char *user_identifier;
 	char *request_token;
@@ -68,55 +56,69 @@ struct token_refresh_request {
 };
 typedef struct token_refresh_request token_refresh_request;
 
+struct operation_details {
+	char *type_of_operation;
+	char *targeted_resource;
+	char *access_token;
+};
+typedef struct operation_details operation_details;
+
 struct permissions_detail {
 	char *targeted_resource;
 	char *granted_permissions;
 };
 typedef struct permissions_detail permissions_detail;
 
-extern vector<user_credentials> user_list;
-extern vector<string> resources;
+struct user_credentials {
+	char *user_identifier;
+	struct token_details tokens;
+	bool_t is_token_validated;
+};
+typedef struct user_credentials user_credentials;
+
 extern map<string, vector<struct permissions_detail>> approvals;
 extern int token_validity_seconds;
+extern vector<string> resources;
+extern vector<user_credentials> user_list;
 extern ifstream input_file_4;
 
 #define OAUTH 0x11111111
 #define OAUTHVERS 1
 
 #if defined(__STDC__) || defined(__cplusplus)
+#define check_token_validity METHOD_CHECK_TOKEN_VALIDITY
+extern  int * check_token_validity_1(char **, CLIENT *);
+extern  int * check_token_validity_1_svc(char **, struct svc_req *);
 #define request_authorization METHOD_REQUEST_AUTHORIZATION
 extern  char ** request_authorization_1(char **, CLIENT *);
 extern  char ** request_authorization_1_svc(char **, struct svc_req *);
+#define approve_request_token METHOD_APPROVE_REQUEST_TOKEN
+extern  char ** approve_request_token_1(char **, CLIENT *);
+extern  char ** approve_request_token_1_svc(char **, struct svc_req *);
 #define request_access_token METHOD_REQUEST_ACCESS_TOKEN
 extern  struct token_details * request_access_token_1(struct token_refresh_request *, CLIENT *);
 extern  struct token_details * request_access_token_1_svc(struct token_refresh_request *, struct svc_req *);
 #define validate_delegated_action METHOD_VALIDATE_DELEGATED_ACTION
 extern  char ** validate_delegated_action_1(struct operation_details *, CLIENT *);
 extern  char ** validate_delegated_action_1_svc(struct operation_details *, struct svc_req *);
-#define approve_request_token METHOD_APPROVE_REQUEST_TOKEN
-extern  char ** approve_request_token_1(char **, CLIENT *);
-extern  char ** approve_request_token_1_svc(char **, struct svc_req *);
-#define check_token_validity METHOD_CHECK_TOKEN_VALIDITY
-extern  int * check_token_validity_1(char **, CLIENT *);
-extern  int * check_token_validity_1_svc(char **, struct svc_req *);
 extern int oauth_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
+#define check_token_validity METHOD_CHECK_TOKEN_VALIDITY
+extern  int * check_token_validity_1();
+extern  int * check_token_validity_1_svc();
 #define request_authorization METHOD_REQUEST_AUTHORIZATION
 extern  char ** request_authorization_1();
 extern  char ** request_authorization_1_svc();
+#define approve_request_token METHOD_APPROVE_REQUEST_TOKEN
+extern  char ** approve_request_token_1();
+extern  char ** approve_request_token_1_svc();
 #define request_access_token METHOD_REQUEST_ACCESS_TOKEN
 extern  struct token_details * request_access_token_1();
 extern  struct token_details * request_access_token_1_svc();
 #define validate_delegated_action METHOD_VALIDATE_DELEGATED_ACTION
 extern  char ** validate_delegated_action_1();
 extern  char ** validate_delegated_action_1_svc();
-#define approve_request_token METHOD_APPROVE_REQUEST_TOKEN
-extern  char ** approve_request_token_1();
-extern  char ** approve_request_token_1_svc();
-#define check_token_validity METHOD_CHECK_TOKEN_VALIDITY
-extern  int * check_token_validity_1();
-extern  int * check_token_validity_1_svc();
 extern int oauth_1_freeresult ();
 #endif /* K&R C */
 
@@ -126,19 +128,19 @@ extern int oauth_1_freeresult ();
 extern  bool_t xdr_response_type (XDR *, response_type*);
 extern  bool_t xdr_rpc_method (XDR *, rpc_method*);
 extern  bool_t xdr_token_details (XDR *, token_details*);
-extern  bool_t xdr_user_credentials (XDR *, user_credentials*);
-extern  bool_t xdr_operation_details (XDR *, operation_details*);
 extern  bool_t xdr_token_refresh_request (XDR *, token_refresh_request*);
+extern  bool_t xdr_operation_details (XDR *, operation_details*);
 extern  bool_t xdr_permissions_detail (XDR *, permissions_detail*);
+extern  bool_t xdr_user_credentials (XDR *, user_credentials*);
 
 #else /* K&R C */
 extern bool_t xdr_response_type ();
 extern bool_t xdr_rpc_method ();
 extern bool_t xdr_token_details ();
-extern bool_t xdr_user_credentials ();
-extern bool_t xdr_operation_details ();
 extern bool_t xdr_token_refresh_request ();
+extern bool_t xdr_operation_details ();
 extern bool_t xdr_permissions_detail ();
+extern bool_t xdr_user_credentials ();
 
 #endif /* K&R C */
 

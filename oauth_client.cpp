@@ -7,108 +7,140 @@
 #include "oauth.h"
 #include "utils.h"
 
-map<string, string> userData;
-map<string, string> userRefresh;
-map<string, bool> automatedRefresh;
-
-void authz_and_access(CLIENT *clnt, string user_identifier, bool refresh_token)
-{
-    char **result_1;
-    char *request_authorization_1_arg;
-    struct token_details *result_2;
-    struct token_refresh_request request_access_token_1_arg;
-    char **result_4;
-    char *approve_request_token_1_arg;
-
-    ALLOCATE_STRING(request_authorization_1_arg, MEMORY_SIZE);
-    strcpy(request_authorization_1_arg, user_identifier.c_str());
-    result_1 = request_authorization_1(&request_authorization_1_arg, clnt);
-
-    if (result_1 == (char **)NULL)
-    {
-        clnt_perror(clnt, STR_CALL_FAILED);
-    }
-
-    ALLOCATE_STRING(approve_request_token_1_arg, MEMORY_SIZE);
-    strcpy(approve_request_token_1_arg, *result_1);
-    result_4 = approve_request_token_1(&approve_request_token_1_arg, clnt);
-    if (result_4 == (char **)NULL)
-    {
-        clnt_perror(clnt, STR_CALL_FAILED);
-    }
-
-    ALLOCATE_STRING(request_access_token_1_arg.user_identifier, MEMORY_SIZE);
-    strcpy(request_access_token_1_arg.user_identifier, user_identifier.c_str());
-    ALLOCATE_STRING(request_access_token_1_arg.request_token, MEMORY_SIZE);
-    strcpy(request_access_token_1_arg.request_token, *result_1);
-    request_access_token_1_arg.refresh_token = refresh_token;
-    request_access_token_1_arg.initiate_refresh = false;
-
-    result_2 = request_access_token_1(&request_access_token_1_arg, clnt);
-    if (result_2 == (struct token_details *)NULL)
-    {
-        clnt_perror(clnt, STR_CALL_FAILED);
-    }
-
-    if (strcmp(*result_1, STR_USER_NOT_FOUND) == 0)
-    {
-        PRINT_STRING(result_1);
-    }
-    else
-    {
-        string accT((*result_2).access_token);
-        userData[user_identifier] = accT;
-        if (refresh_token == true)
-        {
-            string refrT((*result_2).refresh_token);
-            userRefresh[user_identifier] = refrT;
-        }
-        if (strcmp(result_2->token_error_message, STR_REQUEST_DENIED) == 0)
-        {
-            PRINT_STRING(&(result_2->token_error_message));
-        }
-        else
-        {
-			PRINT_COMPLETE_TOKEN_DETAILS(result_1, result_2->access_token, result_2->refresh_token, refresh_token);
-        }
-    }
-    automatedRefresh[user_identifier] = refresh_token;
-
-    FREE_MEMORY(request_authorization_1_arg);
-    FREE_MEMORY(approve_request_token_1_arg);
-    FREE_MEMORY(request_access_token_1_arg.user_identifier);
-    FREE_MEMORY(request_access_token_1_arg.request_token);
-    FREE_MEMORY(*result_1);
-    FREE_MEMORY(result_2->access_token);
-    FREE_MEMORY(result_2->refresh_token);
-    FREE_MEMORY(result_2->token_error_message);
-    FREE_MEMORY(*result_4);
+// Function to allocate memory for a string and copy the source string to the destination.
+void allocate_and_copy_string(char **destination, const string &source) {
+    // Allocate memory for the destination string
+    ALLOCATE_STRING(*destination, MEMORY_SIZE);
+    // Copy the source string to the destination
+    strcpy(*destination, source.c_str());
 }
 
+// Function to assign token data to the appropriate variable based on the index.
 void assignTokenData(int index, const string& token, string& user_identifier, string& type_of_operation, string& targeted_resource) {
+    // Array of pointers to the token data variables
     string* dataPointers[3] = {&user_identifier, &type_of_operation, &targeted_resource};
+    // Assign token to the correct variable based on the index
     *dataPointers[index % 3] = token;
 }
 
+// Function to handle user authentication and token refresh logic.
+void handle_user_auth_and_token_refresh(CLIENT *clnt, string user_identifier, bool refresh_token)
+{
+    char *request_authorization_1_arg;
+    char *approve_request_token_1_arg;
+
+    char **result_1;
+    char **result_4;
+
+    struct token_details *result_2;
+    struct token_refresh_request request_access_token_1_arg;
+
+    // Allocate and copy user identifier
+    allocate_and_copy_string(&request_authorization_1_arg, user_identifier);
+    // Request authorization token
+    result_1 = request_authorization_1(&request_authorization_1_arg, clnt);
+    if (result_1 == NULLPTR)
+    {
+        clnt_perror(clnt, STR_CALL_FAILED);
+        FREE_MEMORY(request_authorization_1_arg);
+        return;
+    }
+
+    // Allocate and copy request token
+    allocate_and_copy_string(&approve_request_token_1_arg, *result_1);
+    // Approve request token
+    result_4 = approve_request_token_1(&approve_request_token_1_arg, clnt);
+    if (result_4 == NULLPTR)
+    {
+        clnt_perror(clnt, STR_CALL_FAILED);
+        FREE_MEMORY(*result_1);
+        FREE_MEMORY(request_authorization_1_arg);
+        FREE_MEMORY(approve_request_token_1_arg);
+        return;
+    }
+
+    // Allocate and copy user identifier for access token request
+    allocate_and_copy_string(&request_access_token_1_arg.user_identifier, user_identifier);
+    // Allocate and copy request token
+    allocate_and_copy_string(&request_access_token_1_arg.request_token, *result_1);
+    request_access_token_1_arg.initiate_refresh = false;
+    request_access_token_1_arg.refresh_token = refresh_token;
+
+    // Request access token
+    result_2 = request_access_token_1(&request_access_token_1_arg, clnt);
+    
+    if (result_2 != TOKEN_DETAILS_NULL) {
+        if (result_2->token_error_message && !strcmp(result_2->token_error_message, STR_REQUEST_DENIED))
+        {
+            // Request denied
+            PRINT_STRING(&(result_2->token_error_message));
+        } else if (!strcmp(*result_1, STR_USER_NOT_FOUND)) {
+            // User not found
+            PRINT_STRING(result_1);
+        } else {
+            // Store access token
+            userData[user_identifier] = result_2->access_token ? result_2->access_token : "";
+            if (refresh_token)
+            {
+                // Store refresh token
+                userRefresh[user_identifier] = result_2->refresh_token ? result_2->refresh_token : "";
+            }
+            // Print token details
+            PRINT_COMPLETE_TOKEN_DETAILS(result_1, result_2->access_token, result_2->refresh_token, refresh_token);
+        }
+
+        // Store refresh token flag
+        automatedRefresh[user_identifier] = refresh_token;
+
+        // Free allocated memory
+        FREE_MEMORY(result_2->token_error_message);
+        FREE_MEMORY(result_2->refresh_token);
+        FREE_MEMORY(result_2->access_token);
+        FREE_MEMORY(*result_4);
+        FREE_MEMORY(*result_1);
+        FREE_MEMORY(request_access_token_1_arg.request_token);
+        FREE_MEMORY(request_access_token_1_arg.user_identifier);
+        FREE_MEMORY(approve_request_token_1_arg);
+        FREE_MEMORY(request_authorization_1_arg);
+    } else {
+        // Request failed
+        clnt_perror(clnt, STR_CALL_FAILED);
+        FREE_MEMORY(request_authorization_1_arg);
+        FREE_MEMORY(approve_request_token_1_arg);
+        FREE_MEMORY(request_access_token_1_arg.user_identifier);
+        FREE_MEMORY(request_access_token_1_arg.request_token);
+        FREE_MEMORY(*result_1);
+        FREE_MEMORY(*result_4);
+        return;
+    }
+}
+
+// Main OAuth function to handle operations based on the client file
 void oauth_1(char *host, char *clientFile)
 {
     CLIENT *clnt;
-    char **result_1;
+
     char *request_authorization_1_arg;
-    struct token_details *result_2;
-    struct token_refresh_request request_access_token_1_arg;
-    char **result_3;
-    struct operation_details validate_delegated_action_1_arg;
-    char **result_4;
+    char **result_1;
+
     char *approve_request_token_1_arg;
-    int *result_5;
+    char **result_4;
+
+    struct token_refresh_request request_access_token_1_arg;
+    struct token_details *result_2;
+
+    struct operation_details validate_delegated_action_1_arg;
+    char **result_3;
+
     char *check_valability_1_arg;
+    int *result_5;
 
 #ifndef DEBUG
-    clnt = clnt_create(host, OAUTH, OAUTHVERS, STR_UDP);
-    if (clnt == NULL)
-    {
+    clnt = clnt_create(host, OAUTH, OAUTHVERS, STR_UDP);  // Create RPC client
+    if (!clnt) {
+        // Creation failed
         clnt_pcreateerror(host);
+        cerr << "Failed to create CLIENT object for host: " << host << endl;
         exit(1);
     }
 #endif /* DEBUG */
@@ -116,6 +148,7 @@ void oauth_1(char *host, char *clientFile)
 
     if (!inputFile.is_open())
     {
+        // File could not be opened
         cout << STR_ERROR_OPENING_FILE;
     }
 
@@ -123,96 +156,134 @@ void oauth_1(char *host, char *clientFile)
     while (getline(inputFile, line, CHAR_NEWLINE))
     {
         bool expired = false;
-		istringstream lineStream(line);
-		int i = 3;
-		while (getline(lineStream, token, CHAR_COMMA)) {
-			assignTokenData(i, token, user_identifier, type_of_operation, targeted_resource);
-			i++;
-		}
-		if (type_of_operation == STR_REQUEST_OPERATION)
-		{
-			int resource_value = std::stoi(targeted_resource);
-			bool use_refresh_token = (resource_value == 1);
-			authz_and_access(clnt, user_identifier, use_refresh_token);
-		}
-        ALLOCATE_STRING(check_valability_1_arg, MEMORY_SIZE);
-        strcpy(check_valability_1_arg, user_identifier.c_str());
+        istringstream lineStream(line);
+        int i = 3;
+        while (getline(lineStream, token, CHAR_COMMA)) {
+            // Assign token data from the line
+            assignTokenData(i, token, user_identifier, type_of_operation, targeted_resource);
+            i++;
+        }
+
+        if (type_of_operation == STR_REQUEST_OPERATION) {
+            // Handle user authentication and token refresh
+            int resource_value = stoi(targeted_resource);
+            bool use_refresh_token = (resource_value == 1);
+            handle_user_auth_and_token_refresh(clnt, user_identifier, use_refresh_token);
+        }
+
+        // Allocate and copy user identifier for token validity check
+        allocate_and_copy_string(&check_valability_1_arg, user_identifier);
+        // Check token validity
         result_5 = check_token_validity_1(&check_valability_1_arg, clnt);
-        if (result_5 == (int *)NULL)
+        if (result_5 == INT_PTR_NULL)
         {
+            // Request failed
             clnt_perror(clnt, STR_CALL_FAILED);
         }
-        if (*result_5 == 0 && automatedRefresh[user_identifier] == true)
-        {
-            ALLOCATE_STRING(request_access_token_1_arg.user_identifier, MEMORY_SIZE);
-            strcpy(request_access_token_1_arg.user_identifier, user_identifier.c_str());
-            ALLOCATE_STRING(request_access_token_1_arg.request_token, MEMORY_SIZE);
-            strcpy(request_access_token_1_arg.request_token, userRefresh[user_identifier].c_str());
-            request_access_token_1_arg.refresh_token = true;
-            request_access_token_1_arg.initiate_refresh = true;
 
-            result_2 = request_access_token_1(&request_access_token_1_arg, clnt);
-            if (result_2 == (struct token_details *)NULL)
-            {
-                clnt_perror(clnt, STR_CALL_FAILED);
+        // If token is invalid and automated refresh is enabled
+        if (*result_5 == 0 && automatedRefresh[user_identifier]) {
+            // Allocate and copy user identifier for access token request
+            allocate_and_copy_string(&request_access_token_1_arg.user_identifier, user_identifier);
+            if (!request_access_token_1_arg.user_identifier) {
+                clnt_perror(clnt, "Failed to allocate memory for user identifier.");
+                return;
             }
-            string accT((*result_2).access_token);
-            userData[user_identifier] = accT;
-            string refrT((*result_2).refresh_token);
-            userRefresh[user_identifier] = refrT;
 
-            FREE_MEMORY(request_access_token_1_arg.user_identifier);
-            FREE_MEMORY(request_access_token_1_arg.request_token);
-            FREE_MEMORY(result_2->access_token);
-            FREE_MEMORY(result_2->refresh_token);
+            // Allocate and copy request token
+            allocate_and_copy_string(&request_access_token_1_arg.request_token, userRefresh[user_identifier]);
+            if (!request_access_token_1_arg.request_token) {
+                clnt_perror(clnt, "Failed to allocate memory for request token.");
+                FREE_MEMORY(request_access_token_1_arg.user_identifier);
+                return;
+            }
+
+            request_access_token_1_arg.initiate_refresh = true;
+            request_access_token_1_arg.refresh_token = true;
+
+            // Request access token
+            result_2 = request_access_token_1(&request_access_token_1_arg, clnt);
+            if (!result_2) {
+                // Request failed
+                clnt_perror(clnt, STR_CALL_FAILED);
+                FREE_MEMORY(request_access_token_1_arg.request_token);
+                FREE_MEMORY(request_access_token_1_arg.user_identifier);
+                return;
+            }
+
+            if (result_2->access_token) {
+                // Store new access token
+                userData[user_identifier] = result_2->access_token;
+            }
+            if (result_2->refresh_token) {
+                // Store new refresh token
+                userRefresh[user_identifier] = result_2->refresh_token;
+            }
+
+            // Free allocated memory
             FREE_MEMORY(result_2->token_error_message);
+            FREE_MEMORY(result_2->refresh_token);
+            FREE_MEMORY(result_2->access_token);
+            FREE_MEMORY(request_access_token_1_arg.request_token);
+            FREE_MEMORY(request_access_token_1_arg.user_identifier);
         }
 
         if (type_of_operation != STR_REQUEST_OPERATION)
         {
-            ALLOCATE_STRING(validate_delegated_action_1_arg.access_token, MEMORY_SIZE);
-            ALLOCATE_STRING(validate_delegated_action_1_arg.type_of_operation, MEMORY_SIZE);
-            ALLOCATE_STRING(validate_delegated_action_1_arg.targeted_resource, MEMORY_SIZE);
-            strcpy(validate_delegated_action_1_arg.access_token, userData[user_identifier].c_str());
-            strcpy(validate_delegated_action_1_arg.targeted_resource, targeted_resource.c_str());
-            strcpy(validate_delegated_action_1_arg.type_of_operation, type_of_operation.c_str());
+            // Allocate and copy access token, the type of operation and the targeted resource
+            allocate_and_copy_string(&validate_delegated_action_1_arg.access_token, userData[user_identifier]);
+            allocate_and_copy_string(&validate_delegated_action_1_arg.type_of_operation, type_of_operation);
+            allocate_and_copy_string(&validate_delegated_action_1_arg.targeted_resource, targeted_resource);
 
+            // Validate delegated action
             result_3 = validate_delegated_action_1(&validate_delegated_action_1_arg, clnt);
-            if (result_3 == (char **)NULL)
+            if (result_3 == NULLPTR)
             {
+                // Request failed
                 clnt_perror(clnt, STR_CALL_FAILED);
             }
+            // Print result
             PRINT_STRING(result_3);
 
-            FREE_MEMORY(check_valability_1_arg);
-            FREE_MEMORY(validate_delegated_action_1_arg.access_token);
-            FREE_MEMORY(validate_delegated_action_1_arg.type_of_operation);
+            // Free allocated memory
             FREE_MEMORY(validate_delegated_action_1_arg.targeted_resource);
+            FREE_MEMORY(validate_delegated_action_1_arg.type_of_operation);
+            FREE_MEMORY(validate_delegated_action_1_arg.access_token);
         }
     }
     inputFile.close();
 #ifndef DEBUG
-    clnt_destroy(clnt);
+    clnt_destroy(clnt);  // Destroy RPC client
 #endif /* DEBUG */
+}
+
+// Function to check the command-line arguments.
+bool check_arguments(int argc, char* argv[]) {
+    if (argc < 3) {
+        cerr << "usage: " << argv[0] << " server_host client_file\n";
+        return false;
+    }
+    return true;
 }
 
 int main(int argc, char *argv[])
 {
-    char *host, *clientFile;
-
-    if (argc < 3)
-    {
-        printf("usage: %s server_host client_file\n", argv[0]);
-        exit(1);
+    if (!check_arguments(argc, argv)) {
+        return 1;
     }
-    ALLOCATE_STRING(host, MEMORY_SIZE);
-    ALLOCATE_STRING(clientFile, MEMORY_SIZE);
-    strcpy(host, argv[1]);
-    strcpy(clientFile, argv[2]);
 
+    char *host;
+    char *clientFile;
+
+    // Allocate and copy host argument and the client file argument
+    allocate_and_copy_string(&host, argv[1]);
+    allocate_and_copy_string(&clientFile, argv[2]);
+
+    // Call the main OAuth function
     oauth_1(host, clientFile);
 
     FREE_MEMORY(host);
     FREE_MEMORY(clientFile);
-    exit(0);
+
+    return 0;
 }
