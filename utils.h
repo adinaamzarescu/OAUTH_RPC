@@ -60,12 +60,22 @@
 #define STR_REQUEST_DENIED "REQUEST_DENIED"
 #define STR_AUTHZ "AUTHZ"
 #define STR_AUTHZ_REFRESH "AUTHZ REFRESH"
-#define STR_EXECUTE "EXECUTE"
 #define STR_CALL_FAILED "call failed"
 #define STR_UDP "udp"
 #define STR_ERROR_OPENING_FILE "error at opening file!"
 #define STR_ERROR_USER_NOT_FOUND "User not found"
 #define STR_REQUEST_OPERATION "REQUEST"
+#define STR_READ "READ"
+#define STR_EXECUTE "EXECUTE"
+#define STR_MODIFY "MODIFY"
+#define STR_INSERT "INSERT"
+#define STR_DELETE "DELETE"
+
+#define CHAR_R 'R'
+#define CHAR_X 'X'
+#define CHAR_M 'M'
+#define CHAR_I 'I'
+#define CHAR_D 'D'
 
 #define STR_EMPTY ""
 #define STR_DASH "-"

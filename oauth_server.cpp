@@ -186,22 +186,43 @@ struct token_details *request_access_token_1_svc(struct token_refresh_request *a
 
 // Function to check if a requested operation is permitted for a given token and resource
 bool is_operation_permitted(const char* requested_operation, const char* targeted_resource, const string& request_token) {
-    string operation(requested_operation);
-    auto& details = approvals[request_token];
-    for (auto& detail : details) {
-        if (!strcmp(detail.targeted_resource, targeted_resource)) {
-            string permissions(detail.granted_permissions);
-			// Determine operation index based on request type
-            size_t op_index = strcmp(requested_operation, STR_EXECUTE) == 0 ? 1 : 0;
-            if (permissions.find(operation.at(op_index)) != string::npos) {
-				// Return true if operation is permitted
+    // Find permissions associated with the request token
+    auto& permissions = approvals[request_token];
+
+    for (auto& p : permissions) {
+        // Check if the current permission matches the targeted resource
+        if (!strcmp(p.targeted_resource, targeted_resource)) {
+            string permissions(p.granted_permissions);
+            char permission_required;
+
+            // Determine the required permission based on the requested operation
+            if (!strcmp(requested_operation, STR_READ)) {
+                permission_required = CHAR_R;
+            } else if (!strcmp(requested_operation, STR_EXECUTE)) {
+                permission_required = CHAR_X;
+            } else if (!strcmp(requested_operation, STR_MODIFY)) {
+                permission_required = CHAR_M;
+            } else if (!strcmp(requested_operation, STR_DELETE)) {
+                permission_required = CHAR_D;
+            } else if (!strcmp(requested_operation, STR_INSERT)) {
+                permission_required = CHAR_I;
+            } else {
+                // If the operation is unknown or not supported, deny permission
+                return false;
+            }
+
+            // Check if the required permission is present in the permissions string
+            if (permissions.find(permission_required) != string::npos) {
                 return true;
             }
         }
     }
-	// Return false if operation is not permitted
+
+    // Return false if no matching permissions are found
     return false;
 }
+
+
 
 // RPC service function to validate a delegated action.
 char **validate_delegated_action_1_svc(struct operation_details *argp, struct svc_req *rqstp) {
@@ -292,40 +313,44 @@ char **approve_request_token_1_svc(char **argp, struct svc_req *rqstp)
     static char *result;
 	// Allocate memory for the result
     ALLOCATE_STRING(result, MEMORY_SIZE);
-    bool found = false;
+    bool no_permissions = false;
 
-    for (auto entry : approvals)
+    for (auto value : approvals)
     {
-        const string& key = entry.first;
-        const auto& value = entry.second;
-        if (*argp == key && !strcmp(value[0].targeted_resource, STR_WILDCARD) &&
-            !strcmp(value[0].granted_permissions, STR_DASH))
-        {
-            auto it = find_if(user_list.begin(), user_list.end(),
-                                   [&](const user_credentials& user) {
-                                       return !strcmp(user.tokens.request_token, *argp);
-                                   });
-            if (it != user_list.end())
+        const string& user_value = value.first;
+        const auto& permissions_value = value.second;
+
+        if (*argp == user_value) {
+            if (!strcmp(permissions_value[0].targeted_resource, STR_WILDCARD) &&
+                !strcmp(permissions_value[0].granted_permissions, STR_DASH))
             {
-				// Set token as not validated
-                it->is_token_validated = false;
-                found = true;
+                // Loop through the user list to find the user
+                for (auto& user : user_list) {
+                    // Compare the request_token of each user with the input token
+                    if (!strcmp(user.tokens.request_token, *argp)) {
+                        // Set the token as invalid since there are no permissions
+                        // for this user
+                        user.is_token_validated = false;
+                        no_permissions = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (no_permissions == false)
+    {
+        // Loop through the user list to find the user
+        for (auto& user : user_list) {
+            // Compare the request_token of each user with the input token
+            if (!strcmp(user.tokens.request_token, *argp)) {
+                // Set the token as validated since permissions exist
+                user.is_token_validated = true;
                 break;
             }
         }
     }
-    if (!found)
-    {
-        auto it = find_if(user_list.begin(), user_list.end(),
-                               [&](const user_credentials& user) {
-                                   return !strcmp(user.tokens.request_token, *argp);
-                               });
-        if (it != user_list.end())
-        {
-			// Set token as validated
-            it->is_token_validated = true;
-        }
-    }
+    
 	// Initialize result with the request token
     INITIALIZE_STRING(result, *argp);
 

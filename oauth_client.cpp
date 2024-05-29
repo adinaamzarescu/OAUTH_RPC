@@ -116,7 +116,7 @@ void handle_user_auth_and_token_refresh(CLIENT *clnt, string user_identifier, bo
 }
 
 // Main OAuth function to handle operations based on the client file
-void oauth_1(char *host, char *clientFile)
+void oauth_1(char *host, char *input_file)
 {
     CLIENT *clnt;
 
@@ -144,7 +144,7 @@ void oauth_1(char *host, char *clientFile)
         exit(1);
     }
 #endif /* DEBUG */
-    ifstream inputFile(clientFile);
+    ifstream inputFile(input_file);
 
     if (!inputFile.is_open())
     {
@@ -273,17 +273,17 @@ int main(int argc, char *argv[])
     }
 
     char *host;
-    char *clientFile;
+    char *input_file;
 
     // Allocate and copy host argument and the client file argument
     allocate_and_copy_string(&host, argv[1]);
-    allocate_and_copy_string(&clientFile, argv[2]);
+    allocate_and_copy_string(&input_file, argv[2]);
 
     // Call the main OAuth function
-    oauth_1(host, clientFile);
+    oauth_1(host, input_file);
 
     FREE_MEMORY(host);
-    FREE_MEMORY(clientFile);
+    FREE_MEMORY(input_file);
 
     return 0;
 }
