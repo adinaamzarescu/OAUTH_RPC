@@ -286,3 +286,11 @@ The main function has been enhanced to handle command-line arguments, open and p
 ## Clean-Up
 
 - **clean**: Removes object files and executables.
+
+
+### Resources
+
+1. https://users.cs.cf.ac.uk/Dave.Marshall/C/node33.html
+2. https://docs-archive.freebsd.org/44doc/psd/23.rpc/paper.pdf
+3. [Programming with rpcgen](https://web.archive.org/web/20030404112736/http://techpubs.sgi.com/library/tpl/cgi-bin/getdoc.cgi?coll=0650&db=bks&srch=&fname=/SGI_Developer/IRIX_NetPG/sgi_html/ch05.html)
+4. [RPC Programming Guide](https://web.archive.org/web/20031013015230/http://techpubs.sgi.com/library/tpl/cgi-bin/getdoc.cgi?coll=0650&db=bks&srch=&fname=/SGI_Developer/IRIX_NetPG/sgi_html/ch06.html)
