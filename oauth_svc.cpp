@@ -41,7 +41,7 @@
 int token_validity_seconds;
 vector<string> resources;
 vector<user_credentials> user_list;
-ifstream input_file_4;
+ifstream approvals_file;
 
 void allocate_and_copy_string(char **destination, const char *source) {
     *destination = (char *)malloc(strlen(source) + 1);
@@ -161,23 +161,23 @@ main (int argc, char **argv)
 		exit(1);
 	}
 
-    char *user_file = NULL;
-    char *resources_file = NULL;
-    char *approvals_file = NULL;
+    char *user_file_path = NULL;
+    char *resources_file_path = NULL;
+    char *approvals_file_path = NULL;
 
-    allocate_and_copy_string(&user_file, argv[1]);
-    allocate_and_copy_string(&resources_file, argv[2]);
-    allocate_and_copy_string(&approvals_file, argv[3]);
+    allocate_and_copy_string(&user_file_path, argv[1]);
+    allocate_and_copy_string(&resources_file_path, argv[2]);
+    allocate_and_copy_string(&approvals_file_path, argv[3]);
 
 	token_validity_seconds = stoi(argv[4]);
-	OPEN_FILE(input_file_1, user_file);
+	OPEN_FILE(user_file, user_file_path);
 
 	string line;
-	CHECK_GETLINE(input_file_1, line, 0);
+	CHECK_GETLINE(user_file, line, 0);
 	int size = stoi(line);
 	for (int i = 0; i < size; ++i)
 	{
-		CHECK_GETLINE(input_file_1, line, i + 1);
+		CHECK_GETLINE(user_file, line, i + 1);
         user_credentials u;
         allocate_and_copy_user_identifier(&u.user_identifier, line);
         if (u.user_identifier == nullptr) {
@@ -193,26 +193,26 @@ main (int argc, char **argv)
         }
 		user_list.push_back(u);
 	}
-	CLOSE_FILE(input_file_1);
+	CLOSE_FILE(user_file);
 
-	OPEN_FILE(input_file_2, resources_file);
+	OPEN_FILE(resources_file, resources_file_path);
 
-	CHECK_GETLINE(input_file_2, line, 0);
+	CHECK_GETLINE(resources_file, line, 0);
 	size = stoi(line);
 	for (int i = 0; i < size; ++i)
 	{
-		CHECK_GETLINE(input_file_2, line, i + 1);
+		CHECK_GETLINE(resources_file, line, i + 1);
 		resources.push_back(line);
 	}
 
-	CLOSE_FILE(input_file_2);
+	CLOSE_FILE(resources_file);
 
-	input_file_4.open(approvals_file);
-	CHECK_FILE(input_file_4, approvals_file);
+	approvals_file.open(approvals_file_path);
+	CHECK_FILE(approvals_file, approvals_file_path);
 	
-	FREE_MEMORY(user_file);
-	FREE_MEMORY(resources_file);
-	FREE_MEMORY(approvals_file);
+	FREE_MEMORY(user_file_path);
+	FREE_MEMORY(resources_file_path);
+	FREE_MEMORY(approvals_file_path);
 
 	setbuf(stdout, NULL);
 	svc_run ();

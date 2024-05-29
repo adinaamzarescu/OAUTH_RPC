@@ -81,8 +81,8 @@
 #define INT_PTR_NULL (int *)NULL
 
 
-map<string, bool> automatedRefresh;
-map<string, string> userRefresh;
-map<string, string> userData;
+map<string, bool> auto_refresh;
+map<string, string> user_refresh;
+map<string, string> user_data;
 
 #endif /* UTILS_H */

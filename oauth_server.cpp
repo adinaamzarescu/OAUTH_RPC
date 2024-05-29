@@ -16,12 +16,12 @@ char *generate_access_token(char *clientIdToken);
 
 // Function to find a user by user ID and generate an access token if found
 bool find_user(char *user_id, char **result_token) {
-    for (int i = 0; i < user_list.size(); i++) {
-        if (!strcmp(user_list[i].user_identifier, user_id)) {
+    for (auto& user : user_list) {
+        if (!strcmp(user.user_identifier, user_id)) {
 			// Generate access token
             strcpy(*result_token, generate_access_token(user_id));
 			// Store request token
-            strcpy(user_list[i].tokens.request_token, *result_token);
+            strcpy(user.tokens.request_token, *result_token);
             return true;
         }
     }
@@ -76,7 +76,7 @@ char **request_authorization_1_svc(char **argp, struct svc_req *rqstp)
     }
 
     string line;
-    if (!getline(input_file_4, line, CHAR_NEWLINE)) {
+    if (!getline(approvals_file, line, CHAR_NEWLINE)) {
 		// Print the request token
         PRINT_REQUEST_TOKEN(result);
         return &result;

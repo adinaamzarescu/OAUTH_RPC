@@ -16,7 +16,7 @@ void allocate_and_copy_string(char **destination, const string &source) {
 }
 
 // Function to assign token data to the appropriate variable based on the index.
-void assignTokenData(int index, const string& token, string& user_identifier, string& type_of_operation, string& targeted_resource) {
+void assign_token_data(int index, const string& token, string& user_identifier, string& type_of_operation, string& targeted_resource) {
     // Array of pointers to the token data variables
     string* dataPointers[3] = {&user_identifier, &type_of_operation, &targeted_resource};
     // Assign token to the correct variable based on the index
@@ -79,18 +79,18 @@ void handle_user_auth_and_token_refresh(CLIENT *clnt, string user_identifier, bo
             PRINT_STRING(result_1);
         } else {
             // Store access token
-            userData[user_identifier] = result_2->access_token ? result_2->access_token : "";
+            user_data[user_identifier] = result_2->access_token ? result_2->access_token : "";
             if (refresh_token)
             {
                 // Store refresh token
-                userRefresh[user_identifier] = result_2->refresh_token ? result_2->refresh_token : "";
+                user_refresh[user_identifier] = result_2->refresh_token ? result_2->refresh_token : "";
             }
             // Print token details
             PRINT_COMPLETE_TOKEN_DETAILS(result_1, result_2->access_token, result_2->refresh_token, refresh_token);
         }
 
         // Store refresh token flag
-        automatedRefresh[user_identifier] = refresh_token;
+        auto_refresh[user_identifier] = refresh_token;
 
         // Free allocated memory
         FREE_MEMORY(result_2->token_error_message);
@@ -160,7 +160,7 @@ void oauth_1(char *host, char *clientFile)
         int i = 3;
         while (getline(lineStream, token, CHAR_COMMA)) {
             // Assign token data from the line
-            assignTokenData(i, token, user_identifier, type_of_operation, targeted_resource);
+            assign_token_data(i, token, user_identifier, type_of_operation, targeted_resource);
             i++;
         }
 
@@ -182,7 +182,7 @@ void oauth_1(char *host, char *clientFile)
         }
 
         // If token is invalid and automated refresh is enabled
-        if (*result_5 == 0 && automatedRefresh[user_identifier]) {
+        if (*result_5 == 0 && auto_refresh[user_identifier]) {
             // Allocate and copy user identifier for access token request
             allocate_and_copy_string(&request_access_token_1_arg.user_identifier, user_identifier);
             if (!request_access_token_1_arg.user_identifier) {
@@ -191,7 +191,7 @@ void oauth_1(char *host, char *clientFile)
             }
 
             // Allocate and copy request token
-            allocate_and_copy_string(&request_access_token_1_arg.request_token, userRefresh[user_identifier]);
+            allocate_and_copy_string(&request_access_token_1_arg.request_token, user_refresh[user_identifier]);
             if (!request_access_token_1_arg.request_token) {
                 clnt_perror(clnt, "Failed to allocate memory for request token.");
                 FREE_MEMORY(request_access_token_1_arg.user_identifier);
@@ -213,11 +213,11 @@ void oauth_1(char *host, char *clientFile)
 
             if (result_2->access_token) {
                 // Store new access token
-                userData[user_identifier] = result_2->access_token;
+                user_data[user_identifier] = result_2->access_token;
             }
             if (result_2->refresh_token) {
                 // Store new refresh token
-                userRefresh[user_identifier] = result_2->refresh_token;
+                user_refresh[user_identifier] = result_2->refresh_token;
             }
 
             // Free allocated memory
@@ -231,7 +231,7 @@ void oauth_1(char *host, char *clientFile)
         if (type_of_operation != STR_REQUEST_OPERATION)
         {
             // Allocate and copy access token, the type of operation and the targeted resource
-            allocate_and_copy_string(&validate_delegated_action_1_arg.access_token, userData[user_identifier]);
+            allocate_and_copy_string(&validate_delegated_action_1_arg.access_token, user_data[user_identifier]);
             allocate_and_copy_string(&validate_delegated_action_1_arg.type_of_operation, type_of_operation);
             allocate_and_copy_string(&validate_delegated_action_1_arg.targeted_resource, targeted_resource);
 

@@ -80,7 +80,7 @@ extern map<string, vector<struct permissions_detail>> approvals;
 extern int token_validity_seconds;
 extern vector<string> resources;
 extern vector<user_credentials> user_list;
-extern ifstream input_file_4;
+extern ifstream approvals_file;
 
 #define OAUTH 0x11111111
 #define OAUTHVERS 1
