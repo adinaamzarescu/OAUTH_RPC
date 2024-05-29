@@ -154,7 +154,7 @@ struct token_details *request_access_token_1_svc(struct token_refresh_request *a
                 strcpy(refresh_token, generate_access_token(access_token));
             }
 
-            if (should_log_refresh_action(argp->refresh_token, user.tokens.token_validity_seconds, argp->initiate_refresh)) {
+            if (should_log_refresh_action(argp->refresh_token, user.tokens.token_validity_operations, argp->initiate_refresh)) {
 				// Log refresh action
                 LOG_ACTION(argp->user_identifier, STR_AUTHZ_REFRESH);
             }
@@ -163,9 +163,9 @@ struct token_details *request_access_token_1_svc(struct token_refresh_request *a
             set_tokens(user, result, access_token, refresh_token);
 
 			// Set token validity seconds
-            user.tokens.token_validity_seconds = token_validity_seconds;
+            user.tokens.token_validity_operations = token_validity_operations;
 			// Set result token validity seconds
-            result.token_validity_seconds = token_validity_seconds;
+            result.token_validity_operations = token_validity_operations;
 
 			// Free allocated memory
             FREE_MEMORY(access_token);
@@ -241,7 +241,7 @@ char **validate_delegated_action_1_svc(struct operation_details *argp, struct sv
     }
 
     bool found = false;
-    int token_validity_seconds = 0;
+    int token_validity_operations = 0;
     char access_token[MEMORY_SIZE];
 
     for (auto& user : user_list) {
@@ -252,44 +252,44 @@ char **validate_delegated_action_1_svc(struct operation_details *argp, struct sv
 
             if (!user.is_token_validated) {
 				// Log deny action if token is not validated
-                LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, user.tokens.token_validity_seconds);
+                LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, user.tokens.token_validity_operations);
 				// Set result to "request denied"
                 strcpy(result, STR_REQUEST_DENIED);
                 break;
             }
 
-            if (!user.tokens.token_validity_seconds) {
+            if (!user.tokens.token_validity_operations) {
 				// Log deny action if token is expired
-                LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, user.tokens.token_validity_seconds);
+                LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, user.tokens.token_validity_operations);
 				// Set result to "token expired"
                 strcpy(result, STR_TOKEN_EXPIRED);
                 break;
             }
 
-            auto it = find(resources.begin(), resources.end(), string(argp->targeted_resource));
-            if (it != resources.end()) {
+            auto index = find(resources.begin(), resources.end(), string(argp->targeted_resource));
+            if (index != resources.end()) {
 				// Check if operation is permitted
                 bool permitted = is_operation_permitted(argp->type_of_operation, argp->targeted_resource, user.tokens.request_token);
 				// Decrease token validity seconds
-                user.tokens.token_validity_seconds--;
-                token_validity_seconds = user.tokens.token_validity_seconds;
+                user.tokens.token_validity_operations--;
+                token_validity_operations = user.tokens.token_validity_operations;
                 if (permitted) {
 					// Log permit action
-                    LOG_PERMIT(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_seconds);
+                    LOG_PERMIT(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_operations);
 					// Set result to "permission granted"
                     strcpy(result, STR_PERMISSION_GRANTED);
                 } else {
 					// Log deny action
-                    LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_seconds);
+                    LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_operations);
 					// Set result to "operation not permitted"
                     strcpy(result, STR_OPERATION_NOT_PERMITTED);
                 }
                 break;
             } else {
 				// Decrease token validity seconds
-                user.tokens.token_validity_seconds--;
+                user.tokens.token_validity_operations--;
 				// Log deny action if resource not found
-                LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_seconds);
+                LOG_DENY(argp->type_of_operation, argp->targeted_resource, access_token, user.tokens.token_validity_operations);
 				// Set result to "resource not found"
                 strcpy(result, STR_RESOURCE_NOT_FOUND);
                 break;
@@ -299,7 +299,7 @@ char **validate_delegated_action_1_svc(struct operation_details *argp, struct sv
 
     if (!found) {
 		// Log deny action if user is not found
-        LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, token_validity_seconds);
+        LOG_DENY(argp->type_of_operation, argp->targeted_resource, STR_EMPTY, token_validity_operations);
 		// Set result to "permission denied"
         strcpy(result, STR_PERMISSION_DENIED);
     }
@@ -350,7 +350,7 @@ char **approve_request_token_1_svc(char **argp, struct svc_req *rqstp)
             }
         }
     }
-    
+
 	// Initialize result with the request token
     INITIALIZE_STRING(result, *argp);
 
@@ -368,7 +368,7 @@ int *check_token_validity_1_svc(char **argp, struct svc_req *rqstp)
         if (!strcmp(user.user_identifier, *argp))
         {
 			// Set result to the token validity seconds
-            result = user.tokens.token_validity_seconds;
+            result = user.tokens.token_validity_operations;
             break;
         }
     }

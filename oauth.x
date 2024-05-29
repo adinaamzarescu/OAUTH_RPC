@@ -18,7 +18,7 @@ struct token_details {
     string request_token<>;
     string access_token<>;
     string refresh_token<>;
-    int token_validity_seconds;
+    int token_validity_operations;
     string token_error_message<>;
 };
 

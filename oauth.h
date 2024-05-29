@@ -43,7 +43,7 @@ struct token_details {
 	char *request_token;
 	char *access_token;
 	char *refresh_token;
-	int token_validity_seconds;
+	int token_validity_operations;
 	char *token_error_message;
 };
 typedef struct token_details token_details;
@@ -77,7 +77,7 @@ struct user_credentials {
 typedef struct user_credentials user_credentials;
 
 extern map<string, vector<struct permissions_detail>> approvals;
-extern int token_validity_seconds;
+extern int token_validity_operations;
 extern vector<string> resources;
 extern vector<user_credentials> user_list;
 extern ifstream approvals_file;

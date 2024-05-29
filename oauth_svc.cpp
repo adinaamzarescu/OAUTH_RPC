@@ -38,7 +38,7 @@
 #define USER_IDENTIFIER_SIZE 20
 #define REQUEST_TOKEN_SIZE 50
 
-int token_validity_seconds;
+int token_validity_operations;
 vector<string> resources;
 vector<user_credentials> user_list;
 ifstream approvals_file;
@@ -169,7 +169,7 @@ main (int argc, char **argv)
     allocate_and_copy_string(&resources_file_path, argv[2]);
     allocate_and_copy_string(&approvals_file_path, argv[3]);
 
-	token_validity_seconds = stoi(argv[4]);
+	token_validity_operations = stoi(argv[4]);
 	OPEN_FILE(user_file, user_file_path);
 
 	string line;
