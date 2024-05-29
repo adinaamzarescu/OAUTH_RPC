@@ -36,7 +36,7 @@ xdr_token_details (XDR *xdrs, token_details *objp)
 		 return FALSE;
 	 if (!xdr_string (xdrs, &objp->refresh_token, ~0))
 		 return FALSE;
-	 if (!xdr_int (xdrs, &objp->token_validity_seconds))
+	 if (!xdr_int (xdrs, &objp->token_validity_operations))
 		 return FALSE;
 	 if (!xdr_string (xdrs, &objp->token_error_message, ~0))
 		 return FALSE;

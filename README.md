@@ -303,11 +303,11 @@ The main function has been changed to handle command-line arguments, open and pr
 # Other changes made
 
 * check.sh
-- SERVER_NAME="oauth_server"
-- CLIENT_NAME="oauth_client"
+   - SERVER_NAME="oauth_server"
+   - CLIENT_NAME="oauth_client"
 
 * tests
-- added a new line at the end of the expected_output files
+   - added a new line at the end of the expected_output files
 
 ### Resources
 
