@@ -79,11 +79,11 @@ void handle_user_auth_and_token_refresh(CLIENT *clnt, string user_identifier, bo
             PRINT_STRING(result_1);
         } else {
             // Store access token
-            user_data[user_identifier] = result_2->access_token ? result_2->access_token : "";
+            user_data[user_identifier] = result_2->access_token ? result_2->access_token : STR_EMPTY;
             if (refresh_token)
             {
                 // Store refresh token
-                user_refresh[user_identifier] = result_2->refresh_token ? result_2->refresh_token : "";
+                user_refresh[user_identifier] = result_2->refresh_token ? result_2->refresh_token : STR_EMPTY;
             }
             // Print token details
             PRINT_COMPLETE_TOKEN_DETAILS(result_1, result_2->access_token, result_2->refresh_token, refresh_token);
