@@ -124,7 +124,7 @@ The client-side code handles user authentication, manages token lifecycles, and 
 ### `allocate_and_copy_string(char **destination, const string &source)`
 Allocates memory and copies the source string into the destination. This function is essential for handling dynamic string data within the client operations securely.
 
-### `assignTokenData(int index, const string& token, string& user_identifier, string& type_of_operation, string& targeted_resource)`
+### `assign_token_data(int index, const string& token, string& user_identifier, string& type_of_operation, string& targeted_resource)`
 Assigns token data to appropriate variables based on the index. This function aids in parsing and organizing data from strings into structured data.
 
 ### `handle_user_auth_and_token_refresh(CLIENT *clnt, string user_identifier, bool refresh_token)`
