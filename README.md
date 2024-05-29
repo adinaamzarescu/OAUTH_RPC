@@ -1,3 +1,15 @@
+# OAUTH_RPC
+
+### How to run
+
+```
+make
+```
+
+```
+./check.sh all
+```
+
 # Explanation of `oauth.x`
 
 The `oauth.x` file defines the data structures and RPC program for an OAuth-based authentication and authorization system.
